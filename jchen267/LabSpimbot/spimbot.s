@@ -14,6 +14,9 @@ OTHER_BOT_Y   = 0xffff00a4
 BONK_MASK     = 0x1000
 BONK_ACK      = 0xffff0060
 
+ENERGY_OUT_MASK = 0x4000
+ENERGY_OUT_ACK  = 0xffff00c4
+
 SCAN_X        = 0xffff0050
 SCAN_Y        = 0xffff0054
 SCAN_RADIUS   = 0xffff0058
@@ -32,6 +35,9 @@ FRUIT_SMASH	= 0xffff0068
 SMOOSHED_MASK	= 0x2000
 SMOOSHED_ACK	= 0xffff0064
 REQUEST_WORD    = 0xffff00dc
+REQUEST_PUZZLE = 0xffff00d0
+SUBMIT_SOLUTION = 0xffff00d4
+
 # .text
 # main:
 # 	# go wild
@@ -46,8 +52,6 @@ fruit_data: .space 260
 num_smooshed: .space 4
 
 .text
-
-
 ## bool
 ## solve_puzzle(char *puzzle, const char *word) {
 ##     if (word[0] == '\0') {
@@ -74,8 +78,6 @@ num_smooshed: .space 4
 ##     }
 ##     return 0;
 ## }
-
-.globl solve_puzzle
 solve_puzzle:
 	sub	$sp, $sp, 24
 	sw	$ra, 0($sp)
@@ -156,8 +158,6 @@ sp_done:
 	add	$sp, $sp, 24
 	jr	$ra
 
-
-
 ## Node *
 ## set_node(int row, int col, Node *next) {
 ##     // Call allocate_new_node() instead (see node_main.s)
@@ -168,7 +168,6 @@ sp_done:
 ##     return node;
 ## }
 
-.globl set_node
 set_node:
 	sub	$sp, $sp, 16
 	sw	$ra, 0($sp)
@@ -200,7 +199,6 @@ set_node:
 ##     }
 ## }
 
-.globl remove_node
 remove_node:
 	lw	$t0, 0($a0)		# *curr (entry)
 	bne	$t0, 0, rn_not_null	# *curr != NULL
@@ -252,7 +250,6 @@ rn_next:
 ##     return NULL;
 ## }
 
-.globl search_neighbors
 search_neighbors:
 	bne	$a1, 0, sn_main		# !(word == NULL)
 	li	$v0, 0			# return NULL (data flow)
@@ -323,9 +320,8 @@ sn_search:
 	j	sn_return
 
 sn_next:
-	add	$s4, $s4, 1		# i++
+	add	$s4, $s4, 1		    # i++
 	blt	$s4, 4, sn_loop		# i < 4
-	
 	li	$v0, 0			# return NULL (data flow)
 
 sn_return:
@@ -341,21 +337,17 @@ sn_return:
 	add	$sp, $sp, 36
 	jr	$ra
 
-
-
-
-
 main:
 	li  $s6, 0
 	sw  $s6, num_smooshed 
 	# enable interrupts
 	li	$t4, TIMER_MASK		# timer interrupt enable bit
-	or  $t4, SMOOSHED_MASK # added, enable fruit_smooshed interrupt 
+	or  $t4, SMOOSHED_MASK  # added, enable fruit_smooshed interrupt 
 
+	or  $t4, $t4, ENERGY_OUT_MASK
 	or	$t4, $t4, BONK_MASK	# bonk interrupt bit
 	or	$t4, $t4, 1		# global interrupt enable
 	mtc0	$t4, $12		# set interrupt mask (Status register)
-
 
 	# sub $sp, $sp, 28
 	# sw  $s0, 0($sp) # temp val
@@ -365,7 +357,6 @@ main:
 	# sw  $s4, 16($sp) # fruit_id 
 	# sw  $s5, 20($sp) # fruit_x
 	# sw  $s6, 24($sp)
-
 
 # go to bottom mid of screen
 go_down:
@@ -381,6 +372,10 @@ keep_walking:
 
     li  $s3, 280
     ble $s2, $s3, keep_walking
+    
+
+    # j keep_walking
+
     j   chase_fruit
 
 chase_fruit:
@@ -392,7 +387,6 @@ chase_fruit:
 # check see if num_smooshed > 5, time to smash fruit?
 	lw  $s0, num_smooshed
 	bge $s0, 5, smash_fruit
-
 
 	lw  $s4, 0($t0) # fruit id
     beq $s4, $0, chase_fruit
@@ -459,7 +453,6 @@ keep_walking3:
 
 
 
-
 .kdata				# interrupt handler data (separated just for readability)
 chunkIH:	.space 8	# space for two registers
 non_intrpt_str:	.asciiz "Non-interrupt exception\n"
@@ -492,6 +485,9 @@ interrupt_dispatch:			# Interrupt:
 
 	and	$a0, $k0, TIMER_MASK	# is there a timer interrupt?
 	bne	$a0, 0, timer_interrupt
+
+	and	$a0, $k0, ENERGY_OUT_MASK	# is there a emergy out interrupt?
+	bne	$a0, 0, energy_interrupt
 
 	# add dispatch for other interrupt types here.
 
@@ -534,6 +530,11 @@ timer_interrupt:
 	sw	$v0, TIMER		# request timer in 50000 cycles
 
 	j	interrupt_dispatch	# see if other interrupts are waiting
+
+energy_interrupt:
+	sw	$a1, ENERGY_OUT_ACK		# acknowledge interrupt
+	j   solve_puzzle
+	j	interrupt_dispatch	# see if other interrupts are waiting	
 
 non_intrpt:				# was some non-interrupt
 	li	$v0, PRINT_STRING
