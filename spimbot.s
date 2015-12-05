@@ -41,17 +41,8 @@ REQUEST_ACK  = 0xffff00d8
 REQUEST_WORD    = 0xffff00dc
 REQUEST_PUZZLE = 0xffff00d0
 
-
-
 SUBMIT_SOLUTION = 0xffff00d4
-
-# .text
-# main:
-# 	# go wild
-# 	# the world is your oyster
-# 	jr	$ra
-
-
+GET_ENERGY	= 0xffff00c8
 
 # step 1: allocate static memory in the .data section
 .data
@@ -64,7 +55,6 @@ directions:
 	.word  0  1
 	.word  1  0
 	.word  0 -1
-
 
 .align 2
 fruit_data: .space 260
@@ -113,23 +103,30 @@ go_down:
 	sw	$s0, ANGLE_CONTROL
 
 
-# step 2: load the address of this memory into register
-	la  $s7, puzzle_space
-# step 3: Write this address to the FRUIT_SCAN memory I/O to tell SPIMbot where the fruit array should be stored
-	sw  $s7, REQUEST_PUZZLE
-
 # get the y coordinate
 keep_walking:
     lw  $s2, BOT_Y
     li  $s3, 280
     ble $s2, $s3, keep_walking
-    
-
-    # j keep_walking
-
+   
     j   chase_fruit
 
+regenerate:
+# step 2: load the address of this memory into register
+	la  $s7, puzzle_space
+# step 3: Write this address to the FRUIT_SCAN memory I/O to tell SPIMbot where the fruit array should be stored
+	sw  $s7, REQUEST_PUZZLE
+compare:
+	lw  $t7, GET_ENERGY
+	add $t0, $t0, 1
+	bgt $t7, 100, chase_fruit_cont	
+	j    compare
+
+
 chase_fruit:
+	lw  $t7, GET_ENERGY
+	blt $t7, 50, regenerate
+chase_fruit_cont:
 # step 2: load the address of this memory into register
 	la  $t0, fruit_data
 # step 3: Write this address to the FRUIT_SCAN memory I/O to tell SPIMbot where the fruit array should be stored
@@ -286,10 +283,7 @@ timer_interrupt:
 
 request_interrupt:
 	sw	$a1, REQUEST_ACK		# acknowledge interrupt
-	j   request_puzzle
-	
 
-request_puzzle:
 	# sw	$a1, REQUEST_ACK		# acknowledge interrupt
 #request the word
 	la $a1 word_space
