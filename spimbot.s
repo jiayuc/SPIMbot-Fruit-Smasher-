@@ -42,6 +42,7 @@ REQUEST_WORD    = 0xffff00dc
 REQUEST_PUZZLE = 0xffff00d0
 
 
+
 SUBMIT_SOLUTION = 0xffff00d4
 
 # .text
@@ -50,7 +51,21 @@ SUBMIT_SOLUTION = 0xffff00d4
 # 	# the world is your oyster
 # 	jr	$ra
 
+
+
 # step 1: allocate static memory in the .data section
+.data
+
+num_rows: .space 4 
+num_cols: .space 4
+
+directions:
+	.word -1  0
+	.word  0  1
+	.word  1  0
+	.word  0 -1
+
+
 .align 2
 fruit_data: .space 260
 num_smooshed: .space 4
@@ -60,6 +75,10 @@ puzzle_space:  .space 8192
 
 .align 2
 word_space:  .space 128
+
+.align 2
+node_space: .space 4096
+
 
 NODE_SIZE = 12
 
@@ -84,14 +103,8 @@ main:
 	or	$t4, $t4, 1		# global interrupt enable
 	mtc0	$t4, $12		# set interrupt mask (Status register)
 
-# step 2: load the address of this memory into register
-	la  $s7, puzzle_space
-# step 3: Write this address to the FRUIT_SCAN memory I/O to tell SPIMbot where the fruit array should be stored
-	sw  $s7, REQUEST_PUZZLE
-	
 # go to bottom mid of screen
 go_down:
-
 	li 	$s0, 90
 	sw  $s0, ANGLE
 	li  $s0, 4
@@ -100,11 +113,19 @@ go_down:
 	sw	$s0, ANGLE_CONTROL
 
 
+# step 2: load the address of this memory into register
+	la  $s7, puzzle_space
+# step 3: Write this address to the FRUIT_SCAN memory I/O to tell SPIMbot where the fruit array should be stored
+	sw  $s7, REQUEST_PUZZLE
+
 # get the y coordinate
 keep_walking:
     lw  $s2, BOT_Y
     li  $s3, 280
     ble $s2, $s3, keep_walking
+    
+
+    # j keep_walking
 
     j   chase_fruit
 
@@ -188,9 +209,6 @@ chunkIH:	.space 8	# space for two registers
 non_intrpt_str:	.asciiz "Non-interrupt exception\n"
 unhandled_str:	.asciiz "Unhandled interrupt type\n"
 
-num_rows: .space 4 
-num_cols: .space 4 #!!
-
 .ktext 0x80000180
 interrupt_handler:
 .set noat
@@ -268,7 +286,8 @@ timer_interrupt:
 
 request_interrupt:
 	sw	$a1, REQUEST_ACK		# acknowledge interrupt
-	# j   request_puzzle
+	j   request_puzzle
+	
 
 request_puzzle:
 	# sw	$a1, REQUEST_ACK		# acknowledge interrupt
@@ -283,8 +302,8 @@ request_puzzle:
 	lw $t2 0($t5)		#read num_row
 	lw $t3 4($t5)		#read num_col
 
-	sw $t2 num_rows	   #put num_row into global variable num_rows
-	sw $t3 num_cols		#put num_col into global variable num_cols
+	sw $t2 num_rows	    # put num_row into global variable num_rows
+	sw $t3 num_cols		# put num_col into global variable num_cols
 
 	# la $a0 8($t5)	
 	add $a0, $t5, 8	
@@ -298,7 +317,7 @@ request_puzzle:
 	#change new_node_address's value to node_memory's address
 	la  $t0, node_memory
 	sw  $t0, new_node_address
-
+	 
 	sw	$a1, REQUEST_ACK
 
 	j interrupt_dispatch
