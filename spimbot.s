@@ -195,7 +195,6 @@ keep_walking3:
 
 
 
-
 .kdata				# interrupt handler data (separated just for readability)
 chunkIH:	.space 8	# space for two registers
 non_intrpt_str:	.asciiz "Non-interrupt exception\n"
