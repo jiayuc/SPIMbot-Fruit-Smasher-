@@ -135,6 +135,10 @@ chase_fruit_cont:
     beq $s4, $0, chase_fruit
 	lw  $s5, 8($t0) # fruit_x
     lw  $s1, BOT_X
+    #if at risk of out of bound x-wise, just scan the next fruit
+    bgt $s5, 280, chase_fruit
+    blt $s5, 20, chase_fruit
+
     bgt $s5, $s1, turn_to_right # fruit at right
     blt $s5, $s1, turn_to_left
     j   chase_fruit 
@@ -383,6 +387,7 @@ sn_main:
 	move	$s3, $a3		# col
 	li	$s4, 0			# i
 
+
 sn_loop:
 	mul	$t0, $s4, 8		# i * 8
 	lw	$t1, directions($t0)	# directions[i][0]
@@ -390,6 +395,46 @@ sn_loop:
 	lw	$t1, directions+4($t0)	# directions[i][1]
 	add	$s6, $s3, $t1		# next_col
 
+
+
+
+##    if(next_row == num_rows)
+##                next_row = 0;
+##            if ( next_row == -1 )
+##                next_row = num_rows - 1;
+                
+##            if(next_col == num_cols)
+##                next_col = 0;
+##            if ( next_col == -1 )
+##                next_col = num_cols - 1;     
+added:
+	    lw    $t3, num_rows
+	    lw    $t4,num_cols
+	    beq   $s5,$t3,row_zero
+	    beq   $s5,-1,row_num_rows
+	    beq    $s6,$t4,col_zero
+	    beq    $s6,-1,col_num_cols
+	    j     sn_loop1
+	    
+	    
+	row_zero:
+	    move $s5,$0
+	    j sn_loop1
+	row_num_rows:
+	    lw    $t2,num_rows
+	    sub $t2,$t2,1
+	    move    $s5,$t2
+	    j sn_loop1
+	col_zero:
+	    move $s6,$0
+	    j sn_loop1
+	col_num_cols:
+	    lw    $t2,num_cols
+	    sub $t2,$t2,1
+	    move $s6,$t2
+	    j sn_loop1
+
+sn_loop1:
 	ble	$s5, -1, sn_next	# !(next_row > -1)
 	lw	$t0, num_rows
 	bge	$s5, $t0, sn_next	# !(next_row < num_rows)
