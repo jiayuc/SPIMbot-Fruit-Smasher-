@@ -81,6 +81,7 @@ node_memory: .space 4096
 #---------------------FRUIT------------------------------
  .text
 main:
+	li  $t6, 1  #flag is 0 when solving puzzle, once 1 we should request new puzzle
 	li  $s6, 0
 	sw  $s6, num_smooshed 
 	# enable interrupts
@@ -102,7 +103,6 @@ go_down:
 	li  $s0, 1
 	sw	$s0, ANGLE_CONTROL
 
-
 # get the y coordinate
 keep_walking:
     lw  $s2, BOT_Y
@@ -116,16 +116,11 @@ regenerate:
 	la  $s7, puzzle_space
 # step 3: Write this address to the FRUIT_SCAN memory I/O to tell SPIMbot where the fruit array should be stored
 	sw  $s7, REQUEST_PUZZLE
-compare:
-	lw  $t7, GET_ENERGY
-	add $t0, $t0, 1
-	bgt $t7, 100, chase_fruit_cont	
-	j    compare
-
+	li  $t6, 0 #stop requesting puzzle
+	j   chase_fruit_cont
 
 chase_fruit:
-	lw  $t7, GET_ENERGY
-	blt $t7, 50, regenerate
+	beq $t6, 1, regenerate # when t6 is 1, request new puzzle!
 chase_fruit_cont:
 # step 2: load the address of this memory into register
 	la  $t0, fruit_data
@@ -313,7 +308,7 @@ request_interrupt:
 	sw  $t0, new_node_address
 	 
 	sw	$a1, REQUEST_ACK
-
+	li  $t6, 1 # enable new request puzzle
 	j interrupt_dispatch
 
 
