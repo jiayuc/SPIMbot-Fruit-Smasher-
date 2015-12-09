@@ -1,0 +1,2 @@
+Our strategy is simple scan five fruits and catch the first one whose y-coordinates is above ours. When the spimbot is chasing, we only change the x-coordinates and after bonk interrupt the spimbot will go up a little bit. 
+For solve puzzle part, we find the first letter that match the word's first letter and then use search neighbor to find the rest.We improved the search neighbor so that we can solve puzzle with word wraps around the puzzle.
