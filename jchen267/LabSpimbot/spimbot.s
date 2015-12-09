@@ -135,33 +135,33 @@ chase_fruit_cont:
 	# lw  $s0, num_smooshed
 	bge $s6, 5, smash_fruit
 
-	# lw  $s4, 0($t0) # fruit id
- #    beq $s4, $0, chase_fruit
+	lw  $s4, 0($t0) # fruit id
+    beq $s4, $0, chase_fruit
 
      
     lw  $s1  BOT_Y
 
-    lw	$t1	 4($t0) #1_fruit_points
+    lw	$t1	 12($t0) #1_fruit_y
     ble $s1  $t1 second
 	lw  $s5, 8($t0) # fruit_x
 	j gogogo
 second:
-    lw	$t1	 20($t0) #2_fruit_points
+    lw	$t1	 28($t0) #2_fruit_y
     ble $s1  $t1 third
 	lw  $s5, 24($t0) # fruit_x
 	j gogogo
 third:
-    lw	$t1	 36($t0) #3_fruit_points
+    lw	$t1	 44($t0) #3_fruit_y
     ble $s1  $t1 chase_fruit
 	lw  $s5, 40($t0) # fruit_x
 	j gogogo
 fourth:
-    lw	$t1	 52($t0) #4_fruit_points
+    lw	$t1	 60($t0) #4_fruit_y
     ble $s1  $t1 fifth
 	lw  $s5, 56($t0) # fruit_x
 	j gogogo
 fifth:
-	lw  $t1, 68($t0) #5_fruit_points
+	lw  $t1, 76($t0) #5_fruit_y
     ble $s1  $t1 chase_fruit
 	j gogogo
 
@@ -205,8 +205,23 @@ keep_walking_till_bonk:
     # lw  $s0, num_smooshed
 	bge $s6, 5, keep_walking_till_bonk
     # walk back to normal routine to catch fruit
+go_up:
+	li 	$s0, 270
+	sw  $s0, ANGLE
+	li  $s0, 1
+	sw	$s0, ANGLE_CONTROL
+	li  $s0, 10
+	sw	$s0, VELOCITY
 
+# get the y coordinate
+    li  $s3, 270
+keep_walking_up:
+    lw  $s2, BOT_Y
+    bge $s2, $s3, keep_walking_up
+   	li  $s0, 0
+	sw	$s0, VELOCITY
     j   chase_fruit
+
 
 
 .kdata				# interrupt handler data (separated just for readability)
@@ -238,8 +253,8 @@ interrupt_dispatch:			# Interrupt:
 	and	$a0, $k0, SMOOSHED_MASK	# is there a fruit_smooshed interrupt?
 	bne	$a0, 0, smooshed_interrupt
 
-	# and	$a0, $k0, TIMER_MASK	# is there a timer interrupt?
-	# bne	$a0, 0, timer_interrupt
+	and	$a0, $k0, TIMER_MASK	# is there a timer interrupt?
+	bne	$a0, 0, timer_interrupt
 
 	and	$a0, $k0, REQUEST_MASK	# is there a request_puzzle interrupt?
 	bne	$a0, 0, request_interrupt
@@ -264,50 +279,21 @@ smooshed_interrupt:
  	j	interrupt_dispatch	# see if other interrupts are waiting  
 
 bonk_interrupt:
-
-	sw $zero VELOCITY
-wait:
-
-	lw  $a0 BOT_Y
-	
-	li 	$s0, 90
-	sw  $s0, ANGLE
-	li  $s0, 1
-	sw	$s0, ANGLE_CONTROL
-	li  $s0, 4
-	sw	$s0, VELOCITY
-
-	ble $a0 293 wait
-
-
+	li $k0 BOT_X
+	li $a0 294
+	li $a1 5
+	beq $a0 $k0 acknowledge_bonk
+	beq $a1 $k0 acknowledge_bonk
 	# sw  $s6, num_smooshed
 	beq $s6, $0, acknowledge_bonk
 # num_smooshed is not 0, keep smashing
-smash_in_bonk:
 	sw  $s6, FRUIT_SMASH
 	add $s6, $s6, -1
-	bne $s6, $0, smash_in_bonk
+	j   bonk_interrupt
 
 acknowledge_bonk:
-go_up:
-	li 	$k0, 270
-	sw  $k0, ANGLE
-	li  $k0, 1
-	sw	$k0, ANGLE_CONTROL
-	li  $k0, 10
-	sw	$k0, VELOCITY
-
-# get the y coordinate
-    li  $k0, 270
-keep_walking_up:
-    lw  $a0, BOT_Y
-    bge $a0, $k0, keep_walking_up
-   	li  $a0, 0
-	sw	$a0, VELOCITY
-
-
-	sw $a0 BONK_ACK
-
+	sw	$a1, BONK_ACK		# acknowledge interrupt
+	sw	$zero, VELOCITY		# to be deleted!!
 	j	interrupt_dispatch	# see if other interrupts are waiting
 
 timer_interrupt:
