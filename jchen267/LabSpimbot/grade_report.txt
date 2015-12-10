@@ -1,0 +1,5 @@
+SPIMbot Grade Report
+Qualified for tournament
+Ranks over 8 runs: 34 9 12 42 9 40 55 48
+Lab score: 95
+ -5 points for manual grading
